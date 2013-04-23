@@ -4,7 +4,7 @@ using System.IO;
 using System.Net;
 using System.Web;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
 
     public class HgResumeRestApiServer : IApiServer

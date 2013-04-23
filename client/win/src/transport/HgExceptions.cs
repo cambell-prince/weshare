@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     public class HgCommonException:Exception
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     abstract class BundleStorageManager
     {

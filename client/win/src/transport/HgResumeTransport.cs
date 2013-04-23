@@ -7,7 +7,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using Palaso.Progress;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     class HgResumeException : Exception
     {
@@ -224,7 +224,7 @@ namespace Chorus.VcsDrivers.Mercurial
             {
                 if (_progress.CancelRequested)
                 {
-                    throw new UserCancelledException();
+                    throw new Palaso.CommandLineProcessing.UserCancelledException();
                 }
                 try
                 {
@@ -353,7 +353,7 @@ namespace Chorus.VcsDrivers.Mercurial
                 loopCtr++;
                 if (_progress.CancelRequested)
                 {
-                    throw new UserCancelledException();
+                    throw new Palaso.CommandLineProcessing.UserCancelledException();
                 }
 
                 int dataRemaining = req.BundleSize - req.StartOfWindow;
@@ -646,7 +646,7 @@ namespace Chorus.VcsDrivers.Mercurial
             {
                 if (_progress.CancelRequested)
                 {
-                    throw new UserCancelledException();
+                    throw new Palaso.CommandLineProcessing.UserCancelledException();
                 }
                 retryLoop = false;
                 var response = PullOneChunk(req);

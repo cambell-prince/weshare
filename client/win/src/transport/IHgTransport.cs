@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     public interface IHgTransport
     {

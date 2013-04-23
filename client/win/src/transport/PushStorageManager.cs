@@ -1,6 +1,6 @@
 ﻿using System.IO;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     internal class PushStorageManager : BundleStorageManager
     {

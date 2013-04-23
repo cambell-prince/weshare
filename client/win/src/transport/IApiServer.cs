@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Net;
 
-namespace Chorus.VcsDrivers.Mercurial
+namespace WeShare.Transport
 {
     public interface IApiServer
     {
