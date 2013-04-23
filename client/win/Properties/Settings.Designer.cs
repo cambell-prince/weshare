@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace win.Properties
+namespace WeShare.Properties
 {
 
 

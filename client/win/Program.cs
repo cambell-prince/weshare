@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Windows.Forms;
-using win.Properties;
+using WeShare.Properties;
 
-namespace win
+namespace WeShare
 {
 	static class Program
 	{
