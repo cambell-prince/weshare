@@ -147,14 +147,19 @@ namespace WeShare
 			if (Directory.Exists(e.FullPath))
 			{
 				Debug.WriteLine(String.Format("Directory: {0} renamed to {1}", e.OldFullPath, e.FullPath));
-				foreach (string dir in _watchers.Keys)
+				var defunct = new List<string>();
+				foreach (var dir in _watchers.Keys)
 				{
 					if (dir == e.OldFullPath ||
 						dir.StartsWith(e.OldFullPath + Path.DirectorySeparatorChar))
 					{
-						_watchers[dir].Dispose();
-						_watchers.Remove(dir);
+						defunct.Add(dir);
 					}
+				}
+				foreach (var dir in defunct)
+				{
+					_watchers[dir].Dispose();
+					_watchers.Remove(dir);
 				}
 				CreateWatchers(e.FullPath);
 			}
