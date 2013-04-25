@@ -27,14 +27,14 @@ namespace WeShare.Transport
         {
             StartOfWindow = -1;
             ChunkSize = -1;
-            BundleSize = -1;
+            FileSize = -1;
             Quantity = -1;
         }
 
         // parameters used by push/pull API
         public int StartOfWindow { get; set; }
         public int ChunkSize { get; set; }
-        public int BundleSize { get; set; }
+        public int FileSize { get; set; }
 
         public string TransId { get; set; }
         public string[] BaseHashes { get; set; }
@@ -54,9 +54,9 @@ namespace WeShare.Transport
             {
                 query += String.Format("chunkSize={0}&", ChunkSize);
             }
-            if (BundleSize >= 0)
+            if (FileSize >= 0)
             {
-                query += String.Format("bundleSize={0}&", BundleSize);
+                query += String.Format("bundleSize={0}&", FileSize);
             }
             if (Quantity >= 0)
             {

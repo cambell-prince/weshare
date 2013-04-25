@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -9,6 +10,19 @@ using Palaso.Progress;
 
 namespace WeShare.Transport
 {
+    public class SendQueue : IEnumerable<FileInfo>
+    {
+        public IEnumerator<FileInfo> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+    }
+
     class WeShareException : Exception
     {
         public WeShareException(string message) : base(message) {}
@@ -25,6 +39,7 @@ namespace WeShare.Transport
         private readonly HgRepository _repo;
         private readonly string _targetLabel;
         private readonly IApiServer _apiServer;
+        private List<WeShareFile> _filesOnServer;
 
         private const int InitialChunkSize = 5000;
         private const int MaximumChunkSize = 250000;
@@ -34,12 +49,13 @@ namespace WeShare.Transport
 		
     	///<summary>
         ///</summary>
-        public WeShareTransport(HgRepository repo, string targetLabel, IApiServer apiServer, IProgress progress)
+        public WeShareTransport(HgRepository repo, string targetLabel, IApiServer apiServer, IProgress progress, SendQueue queue)
         {
             _repo = repo;
             _targetLabel = targetLabel;
             _apiServer = apiServer;
             _progress = progress;
+            _filesOnServer = new List<WeShareFile>();
         }
 
         private string RepoIdentifier
@@ -54,296 +70,57 @@ namespace WeShare.Transport
             }
         }
 
-        ///<summary>
-        /// Implements a simple file-based key:value db.  Should be replaced by something better in the future.  Stores the last known common base for a given api server
-        /// File DB is line separated list of "remoteId|hash" pairs
-        /// 
-        /// TODO: implement this using an object serialization class like system.xml.serialization
-        ///</summary>
-        private List<Revision> LastKnownCommonBases
-        {
-            get
-            {
-                string storagePath = PathToLocalStorage;
-                if (!Directory.Exists(storagePath))
-                {
-                    Directory.CreateDirectory(storagePath);
-                }
-                string filePath = Path.Combine(storagePath, RevisionCacheFilename);
-                if (File.Exists(filePath))
-                {
-                	List<ServerRevision> revisions = ReadServerRevisionCache(filePath);
-                	if(revisions != null)
-					{
-						var remoteId = _apiServer.Host;
-						var result = revisions.Where(x => x.RemoteId == remoteId);
-						if (result.Count() > 0)
-						{
-							var results = new List<Revision>(result.Count());
-							foreach (var rev in result)
-							{
-								results.Add(rev.Revision);
-							}
-							return results;
-						}
-					}
-                }
-            	return new List<Revision>();
-            }
-            set
-			{
-				string remoteId = _apiServer.Host;
-            	var serverRevs = new List<ServerRevision>();
-            	foreach (var revision in value)
-            	{
-            		serverRevs.Add(new ServerRevision(remoteId, revision));
-            	}
-                var storagePath = PathToLocalStorage;
-                if (!Directory.Exists(storagePath))
-                {
-                    Directory.CreateDirectory(storagePath);
-                }
-
-				var filePath = Path.Combine(storagePath, RevisionCacheFilename);                
-                var fileContents = ReadServerRevisionCache(filePath);
-				fileContents.RemoveAll(x => x.RemoteId == remoteId);
-				serverRevs.AddRange(fileContents);
-				using(Stream stream = File.Open(filePath, FileMode.Create))
-				{
-					var bFormatter = new BinaryFormatter();
-					bFormatter.Serialize(stream, serverRevs);
-					stream.Close();
-				}
-				return;
-			}
-        }
-
-		/// <summary>
-		/// Used to retrieve the cache of revisions for each server and branch 
-		/// </summary>
-		/// <returns>The contents of the cache file if it exists, or an empty list</returns>
-    	internal static List<ServerRevision> ReadServerRevisionCache(string filePath)
-    	{
-			try
-			{
-				using(Stream stream = File.Open(filePath, FileMode.Open))
-				{
-					var bFormatter = new BinaryFormatter();
-					var revisions = bFormatter.Deserialize(stream) as List<ServerRevision>;
-					stream.Close();
-					return revisions;
-				}				
-			}
-			catch(FileNotFoundException)
-			{
-				return new List<ServerRevision>();
-			}
-    	}
-
-    	[Serializable]
-    	internal class ServerRevision
-		{
-			public readonly string RemoteId;
-			public readonly Revision Revision;
-
-			public ServerRevision(string id, Revision rev)
-			{
-				RemoteId = id;
-				Revision = rev;
-			}
-		}
-
-    	private List<Revision> GetCommonBaseHashesWithRemoteRepo()
-        {
-            return GetCommonBaseHashesWithRemoteRepo(true);
-        }
-
-		private List<Revision> GetCommonBaseHashesWithRemoteRepo(bool useCache)
-        {
-            if (useCache && LastKnownCommonBases.Count > 0)
-            {
-                return LastKnownCommonBases;
-            }
-            int offset = 0;
-            const int quantity = 200;
-			var localRevisions = new MultiMap<string, Revision>();
-			foreach (var rev in  _repo.GetAllRevisions())
-			{
-				localRevisions.Add(rev.Branch, rev);
-			}
-
-			//The goal here is to to return the first common revision of each branch.
-            var commonBases = new List<Revision>();
-			var localBranches = new List<string>(localRevisions.Keys);
-			while (commonBases.Count < localRevisions.Keys.Count())
-			{
-				var remoteRevisions = GetRemoteRevisions(offset, quantity);
-				if (remoteRevisions.Keys.Count() == 1 && remoteRevisions[remoteRevisions.Keys.First()].First().Split(':')[0] == "0")
-				{
-					// special case when remote repo is empty (initialized with no changesets)
-					return new List<Revision>();
-				}
-				foreach (var key in localBranches)
-				{
-					var localList = localRevisions[key];
-					var remoteList = remoteRevisions[key];
-					foreach (var revision in remoteList)
-					{
-						var remoteRevision = revision; //copy to local for use in predicate
-						var commonRevision = localList.Find(localRev => localRev.Number.Hash == remoteRevision);
-						if (commonRevision != null)
-						{
-							commonBases.Add(commonRevision);
-							break;
-						}
-					}
-				}
-				if(remoteRevisions.Count() < quantity)
-                {
-                    //we did not find a common revision for each branch, but we ran out of revisions from the repo
-				    break;
-				}
-				offset += quantity;
-			}
-
-            // If we have found no common revisions at this point, the remote repo is unrelated
-            if (commonBases.Count == 0)
-            {
-                return null;
-            }
-
-			LastKnownCommonBases = commonBases;
-            return commonBases;
-        }
-
-
-        private MultiMap<string, string> GetRemoteRevisions(int offset, int quantity)
-        {
-            const int totalNumOfAttempts = 2;
-            for (int attempt = 1; attempt <= totalNumOfAttempts; attempt++)
-            {
-                if (_progress.CancelRequested)
-                {
-                    throw new Palaso.CommandLineProcessing.UserCancelledException();
-                }
-                try
-                {
-                    var response = _apiServer.Execute("getRevisions", new HgResumeApiParameters
-                                                                          {
-                                                                              RepoId = _apiServer.ProjectId, 
-                                                                              StartOfWindow = offset, 
-                                                                              Quantity = quantity
-                                                                          },
-                                                                          TimeoutInSeconds);
-                    _progress.WriteVerbose("API URL: {0}", _apiServer.Url);
-                    // API returns either 200 OK or 400 Bad Request
-                    // HgR status can be: SUCCESS (200), FAIL (400) or UNKNOWNID (400)
-
-                    if (response != null) // null means server timed out
-                    {
-                        if (response.HttpStatus == HttpStatusCode.ServiceUnavailable && response.Content.Length > 0)
-                        {
-                            var msg = String.Format("Server temporarily unavailable: {0}",
-                            Encoding.UTF8.GetString(response.Content));
-                            _progress.WriteError(msg);
-                            return new MultiMap<string, string>();
-                        }
-                        if (response.HttpStatus == HttpStatusCode.OK && response.Content.Length > 0)
-                        {
-							//The expected response from API version 3 follows the format of
-							//revisionhash:branch|revisionhash:branch|...
-                            string revString = Encoding.UTF8.GetString(response.Content);
-                            var pairs = revString.Split('|').ToList();
-							var revisions = new MultiMap<string, string>();
-                        	foreach (var pair in pairs)
-                        	{
-                        		var hashRevCombo = pair.Split(':');
-								if(hashRevCombo.Length < 2)
-								{
-									throw new WeShareOperationFailed("Failed to get remote revisions. Server/Client API format mismatch.");
-								}
-								revisions.Add(hashRevCombo[1], hashRevCombo[0]);
-                        	}
-                        	return revisions;
-                        }
-                        if (response.HttpStatus == HttpStatusCode.BadRequest && response.ResumableResponse.Status == "UNKNOWNID")
-                        {
-                            _progress.WriteWarning("The remote server {0} does not have repoId '{1}'", _targetLabel, _apiServer.ProjectId);
-                        }
-                        throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
-                    }
-                    if (attempt < totalNumOfAttempts)
-                    {
-                        _progress.WriteWarning("Unable to contact server.  Retrying... ({0} of {1} attempts).", attempt + 1, totalNumOfAttempts);
-                    }
-                    else
-                    {
-                        _progress.WriteWarning("Failed to contact server.");
-                        throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
-                    }
-                }
-                catch (WebException e)
-                {
-                    _progress.WriteError(e.Message);
-                }
-            }
-            throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
-        }
-
         public void Push()
         {
-            var baseRevisions = GetCommonBaseHashesWithRemoteRepo();
-            if (baseRevisions == null)
+            GetFileHashesFromServer();
+
+            foreach (WeShareFile file in GetFileListNeedingPush())
             {
-                const string errorMessage = "Push failed: A common revision could not be found with the server.";
-                _progress.WriteError(errorMessage);
-                throw new WeShareOperationFailed(errorMessage);
+                try
+                {
+                    PushOneFile(file);
+                }
+                catch (Exception)
+                {
+                    // oops
+                    throw;
+                    
+                }
+                
             }
 
-            // create a bundle to push
-            string tip = _repo.GetTip().Number.Hash;
-        	string bundleId = "";
-        	foreach (var revision in baseRevisions)
-        	{
-				bundleId += String.Format("{0}-{1}", revision.Number.Hash, tip);
-        	}
-            var bundleHelper = new PushStorageManager(PathToLocalStorage, bundleId);
-            var bundleFileInfo = new FileInfo(bundleHelper.BundlePath);
-            if (bundleFileInfo.Length == 0)
-            {
-                _progress.WriteStatus("Preparing data to send");
-                bool bundleCreatedSuccessfully = _repo.MakeBundle(GetHashStringsFromRevisions(baseRevisions), bundleHelper.BundlePath);
-                if (!bundleCreatedSuccessfully)
-                {
-                    // try again after clearing revision cache
-                    LastKnownCommonBases = new List<Revision>();
-                    baseRevisions = GetCommonBaseHashesWithRemoteRepo();
-                    bundleCreatedSuccessfully = _repo.MakeBundle(GetHashStringsFromRevisions(baseRevisions), bundleHelper.BundlePath);
-                    if (!bundleCreatedSuccessfully)
-                    {
-                        const string errorMessage = "Push failed: Unable to create local bundle.";
-                        _progress.WriteError(errorMessage);
-                        throw new WeShareOperationFailed(errorMessage);
-                    }
-                }
-                bundleFileInfo.Refresh();
-                if (bundleFileInfo.Length == 0)
-                {
-                    bundleHelper.Cleanup();
-                    _progress.WriteMessage("No changes to send.  Push operation completed");
-                    return;
-                }
-            }
+            // loop over the send queue and push each file one by one to the server
+        }
+
+        private IEnumerable<WeShareFile> GetFileListNeedingPush()
+        {
+            var list = new List<WeShareFile>();
+
+            
+            
+            return list;
+        }
+
+        private void GetFileHashesFromServer()
+        {
+            // TODO do API call to server and get back a JSON list of WeShareFiles.  Convert to WeShareFile list.
+
+            // TODO update _filesOnServer
+            _filesOnServer = new List<WeShareFile>();
+        }
+
+        public void PushOneFile(WeShareFile file)
+        {
+            var pushManager = new PushStorageManager(PathToLocalStorage, file.MD5);
 
             var req = new HgResumeApiParameters
                       {
                           RepoId = _apiServer.ProjectId,
-                          TransId = bundleHelper.TransactionId,
+                          TransId = pushManager.TransactionId,
                           StartOfWindow = 0,
-                          BundleSize = (int) bundleFileInfo.Length
+                          FileSize = (int) file.FileInfo.Length
                       };
-            req.ChunkSize = (req.BundleSize < InitialChunkSize) ? req.BundleSize : InitialChunkSize;
-//            req.BaseHash = baseRevisions; <-- Unless I'm not reading the php right we don't need to set this on push.  JLN Aug-12
+            req.ChunkSize = (req.FileSize < InitialChunkSize) ? req.FileSize : InitialChunkSize;
             _progress.ProgressIndicator.Initialize();
 
             _progress.WriteStatus("Sending data");
@@ -356,12 +133,12 @@ namespace WeShare.Transport
                     throw new Palaso.CommandLineProcessing.UserCancelledException();
                 }
 
-                int dataRemaining = req.BundleSize - req.StartOfWindow;
+                int dataRemaining = req.FileSize - req.StartOfWindow;
                 if (dataRemaining < req.ChunkSize)
                 {
                     req.ChunkSize = dataRemaining;
                 }
-                byte[] bundleChunk = bundleHelper.GetChunk(req.StartOfWindow, req.ChunkSize);
+                byte[] bundleChunk = pushManager.GetChunk(req.StartOfWindow, req.ChunkSize);
 
                 /* API parameters
                  * $repoId, $baseHash, $bundleSize, $offset, $data, $transId
@@ -378,13 +155,6 @@ namespace WeShare.Transport
                     _progress.WriteWarning("Push operation timed out.  Retrying...");
                     continue;
                 }
-                if (response.Status == PushStatus.InvalidHash)
-                {
-                    // this should not happen...but sometimes it gets into a state where it remembers the wrong basehash of the server (CJH Feb-12)
-                    _progress.WriteVerbose("Invalid basehash response received from server... clearing cache and retrying");
-//                    req.BaseHash = GetCommonBaseHashesWithRemoteRepo(false); <-- Unless I'm misreading the php we don't need to set this on a push. JLN Aug-12
-                    continue;
-                }
                 if (response.Status == PushStatus.Fail)
                 {
                     // This 'Fail' intentionally aborts the push attempt.  I think we can continue to go around the loop and retry. See Pull also. CP 2012-06
@@ -396,13 +166,13 @@ namespace WeShare.Transport
                 if (response.Status == PushStatus.Reset)
                 {
                     FinishPush(req.TransId);
-                    bundleHelper.Cleanup();
+                    pushManager.Cleanup();
                     const string errorMessage = "Push failed: Server reset.";
                     _progress.WriteError(errorMessage);
                     throw new WeShareOperationFailed(errorMessage);
                 }
 
-                if (response.Status == PushStatus.Complete || req.StartOfWindow >= req.BundleSize)
+                if (response.Status == PushStatus.Complete || req.StartOfWindow >= req.FileSize)
                 {
                     if (response.Status == PushStatus.Complete)
                     {
@@ -413,10 +183,8 @@ namespace WeShare.Transport
                     }
                     _progress.ProgressIndicator.Finish();
 
-                    // update our local knowledge of what the server has
-                    LastKnownCommonBases = new List<Revision>(_repo.BranchingHelper.GetBranches()); // This may be a little optimistic, the server may still be unbundling the data.
-                    //FinishPush(req.TransId);  // We can't really tell when the server has finished processing our pulled data.  The server cleans up after itself. CP 2012-07
-                    bundleHelper.Cleanup();
+                    // TODO update our local knowledge of what the server has
+                    pushManager.Cleanup();
                     return;
                 }
 
@@ -427,10 +195,10 @@ namespace WeShare.Transport
                     string message = String.Format("Resuming push operation at {0} sent", GetHumanReadableByteSize(req.StartOfWindow));
                     _progress.WriteVerbose(message);
                 }
-                string eta = CalculateEstimatedTimeRemaining(req.BundleSize, req.ChunkSize, req.StartOfWindow);
-                _progress.WriteStatus(string.Format("Sending {0} {1}", GetHumanReadableByteSize(req.BundleSize), eta));
-                _progress.ProgressIndicator.PercentCompleted = (int)((long)req.StartOfWindow * 100 / req.BundleSize);
-            } while (req.StartOfWindow < req.BundleSize);
+                string eta = CalculateEstimatedTimeRemaining(req.FileSize, req.ChunkSize, req.StartOfWindow);
+                _progress.WriteStatus(string.Format("Sending {0} {1}", GetHumanReadableByteSize(req.FileSize), eta));
+                _progress.ProgressIndicator.PercentCompleted = (int)((long)req.StartOfWindow * 100 / req.FileSize);
+            } while (req.StartOfWindow < req.FileSize);
         }
 
         private static string CalculateEstimatedTimeRemaining(int bundleSize, int chunkSize, int startOfWindow)
@@ -595,7 +363,7 @@ namespace WeShare.Transport
 
         public bool Pull()
         {
-            var baseHashes = GetCommonBaseHashesWithRemoteRepo();
+            /*var baseHashes = GetCommonBaseHashesWithRemoteRepo();
             if (baseHashes == null || baseHashes.Count == 0)
             {
                 // a null or empty list indicates that the server has an empty repo
@@ -603,6 +371,8 @@ namespace WeShare.Transport
                 return false;
             }
 			return Pull(GetHashStringsFromRevisions(baseHashes));
+             */
+            return Pull();
         }
 
         public bool Pull(string[] baseRevisions)
@@ -687,7 +457,7 @@ namespace WeShare.Transport
                     // this should not happen...but sometimes it gets into a state where it remembers the wrong basehash of the server (CJH Feb-12)
                     retryLoop = true;
                     _progress.WriteVerbose("Invalid basehash response received from server... clearing cache and retrying");
-                    req.BaseHashes = GetHashStringsFromRevisions(GetCommonBaseHashesWithRemoteRepo(false));
+                    //req.BaseHashes = GetHashStringsFromRevisions(GetCommonBaseHashesWithRemoteRepo(false));
                     continue;
                 }
                 if (response.Status == PullStatus.Fail)
@@ -760,7 +530,7 @@ namespace WeShare.Transport
 
                 // REVIEW: I'm not sure why this was set to the server tip before, if we just pulled then won't our head
 				// be the correct common base? Maybe not if a merge needs to happen,
-                LastKnownCommonBases = new List<Revision>(_repo.BranchingHelper.GetBranches());
+                //LastKnownCommonBases = new List<Revision>(_repo.BranchingHelper.GetBranches());
                 return true;
             }
             _progress.WriteError("Received all data but local unbundle operation failed or resulted in multiple heads!");
@@ -932,5 +702,13 @@ namespace WeShare.Transport
                 Directory.Delete(localStoragePath, true);
             }
         }
+    }
+
+    public class WeShareFile
+    {
+        public String Path;
+        public String MD5;
+        public DateTime ModifiedDate;
+        public FileInfo FileInfo;
     }
 }
