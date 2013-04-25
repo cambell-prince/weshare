@@ -54,6 +54,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="PushAction.cs" />
     <Compile Include="SetupDlg.cs">
       <SubType>Form</SubType>
     </Compile>

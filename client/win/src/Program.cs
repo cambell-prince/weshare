@@ -20,8 +20,14 @@ namespace WeShare
 		/// Provides asynchronous monitoring of the shared directory and its contents.
 		/// </summary>
 		static Dictionary<string, FileSystemWatcher> _watchers;
-
-		static SetupDlg _setup;
+		/// <summary>
+		/// Queue of filesystem changes to push to the server as we have time.
+		/// </summary>
+		static Queue<PushAction> _pushes;
+		/// <summary>
+		/// Timer to periodically check the queue.
+		/// </summary>
+		static System.Timers.Timer _timer;
 		/// <summary>
 		/// The main entry point for the application.
 		/// </summary>
@@ -44,9 +50,11 @@ namespace WeShare
 			if (!Directory.Exists(_sharedir))
 				Directory.CreateDirectory(_sharedir);
 
-			// Set the watchers we need to minitor changes in the WeShare folder (and subfolders).
+			// Set the watchers we need to monitor changes in the WeShare folder (and subfolders).
 			_watchers = new Dictionary<string, FileSystemWatcher>();
 			CreateWatchers(_sharedir);
+			// Create the queue of filesystem changes to push to the server.
+			_pushes = new Queue<PushAction>();
 
 			using (var trayIcon = new NotifyIcon())
 			{
@@ -60,10 +68,30 @@ namespace WeShare
 				trayIcon.ContextMenu = trayMenu;
 				trayIcon.Visible = true;
 				trayIcon.MouseClick += new MouseEventHandler(trayIcon_MouseClick);
-
-				Application.Idle += new EventHandler(Application_Idle);
+				_timer = new System.Timers.Timer(1000.0);	// cycle once per second
+				_timer.Elapsed += new System.Timers.ElapsedEventHandler(Timer_Elapsed);
+				_timer.AutoReset = true;
+				_timer.SynchronizingObject = null;
+				_timer.Start();
 				Application.Run();
 			}
+		}
+
+		static void Timer_Elapsed(object sender, System.Timers.ElapsedEventArgs e)
+		{
+			_timer.Stop();
+			if (_pushes.Count > 0)
+			{
+				// Push this change to the server.
+				var action = _pushes.Dequeue();
+				action.Push();
+				Debug.WriteLine(String.Format("Idle: pushing {0}", action));
+			}
+			else
+			{
+				// TODO: Pull a change that the server knows about (if any).
+			}
+			_timer.Start();
 		}
 
 		private static void CreateWatchers(string directory)
@@ -90,8 +118,10 @@ namespace WeShare
 
 		private static void OnShowSetup(object sender, EventArgs e)
 		{
-			using (_setup = new SetupDlg())
-				_setup.ShowDialog();
+			using (var setup = new SetupDlg())
+			{
+				setup.ShowDialog();
+			}
 		}
 
 		private static void OnExit(object sender, EventArgs e)
@@ -105,16 +135,12 @@ namespace WeShare
 				return;
 		}
 
-		static void Application_Idle(object sender, EventArgs e)
-		{
-			// TODO: next step in updating to/from the network...
-		}
-
 		private static void OnChanged(object source, FileSystemEventArgs e)
 		{
 			if (File.Exists(e.FullPath))
 			{
-				Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
+				//Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
+				_pushes.Enqueue(new PushAction(PushAction.ActionType.Change, e.FullPath));
 			}
 		}
 
@@ -122,34 +148,36 @@ namespace WeShare
 		{
 			if (Directory.Exists(e.FullPath))
 			{
-				Debug.WriteLine(String.Format("Directory: {0} {1}", e.FullPath, e.ChangeType));
+				//Debug.WriteLine(String.Format("Directory: {0} {1}", e.FullPath, e.ChangeType));
 				CreateWatchers(e.FullPath);
 			}
 			else
 			{
-				Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
+				//Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
 			}
+			_pushes.Enqueue(new PushAction(PushAction.ActionType.Create, e.FullPath));
 		}
 
 		private static void OnDeleted(object source, FileSystemEventArgs e)
 		{
 			if (_watchers.ContainsKey(e.FullPath))
 			{
-				Debug.WriteLine(String.Format("Directory: {0} {1}", e.FullPath, e.ChangeType));
+				//Debug.WriteLine(String.Format("Directory: {0} {1}", e.FullPath, e.ChangeType));
 				_watchers[e.FullPath].Dispose();
 				_watchers.Remove(e.FullPath);
 			}
 			else
 			{
-				Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
+				//Debug.WriteLine(String.Format("File: {0} {1}", e.FullPath, e.ChangeType));
 			}
+			_pushes.Enqueue(new PushAction(PushAction.ActionType.Delete, e.FullPath));
 		}
 
 		private static void OnRenamed(object source, RenamedEventArgs e)
 		{
 			if (Directory.Exists(e.FullPath))
 			{
-				Debug.WriteLine(String.Format("Directory: {0} renamed to {1}", e.OldFullPath, e.FullPath));
+				//Debug.WriteLine(String.Format("Directory: {0} renamed to {1}", e.OldFullPath, e.FullPath));
 				var defunct = new List<string>();
 				foreach (var dir in _watchers.Keys)
 				{
@@ -168,8 +196,9 @@ namespace WeShare
 			}
 			else
 			{
-				Debug.WriteLine(String.Format("File: {0} renamed to {1}", e.OldFullPath, e.FullPath));
+				//Debug.WriteLine(String.Format("File: {0} renamed to {1}", e.OldFullPath, e.FullPath));
 			}
+			_pushes.Enqueue(new PushAction(e.OldFullPath, e.FullPath));
 		}
 	}
 }
