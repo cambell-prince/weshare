@@ -9,17 +9,17 @@ using Palaso.Progress;
 
 namespace WeShare.Transport
 {
-    class HgResumeException : Exception
+    class WeShareException : Exception
     {
-        public HgResumeException(string message) : base(message) {}
+        public WeShareException(string message) : base(message) {}
     }
 
-    class HgResumeOperationFailed : HgResumeException
+    class WeShareOperationFailed : WeShareException
     {
-        public HgResumeOperationFailed(string message) : base(message) {}
+        public WeShareOperationFailed(string message) : base(message) {}
     }
  
-    public class HgResumeTransport : IHgTransport
+    public class WeShareTransport : IWeShareTransport
     {
         private readonly IProgress _progress;
         private readonly HgRepository _repo;
@@ -34,7 +34,7 @@ namespace WeShare.Transport
 		
     	///<summary>
         ///</summary>
-        public HgResumeTransport(HgRepository repo, string targetLabel, IApiServer apiServer, IProgress progress)
+        public WeShareTransport(HgRepository repo, string targetLabel, IApiServer apiServer, IProgress progress)
         {
             _repo = repo;
             _targetLabel = targetLabel;
@@ -260,7 +260,7 @@ namespace WeShare.Transport
                         		var hashRevCombo = pair.Split(':');
 								if(hashRevCombo.Length < 2)
 								{
-									throw new HgResumeOperationFailed("Failed to get remote revisions. Server/Client API format mismatch.");
+									throw new WeShareOperationFailed("Failed to get remote revisions. Server/Client API format mismatch.");
 								}
 								revisions.Add(hashRevCombo[1], hashRevCombo[0]);
                         	}
@@ -270,7 +270,7 @@ namespace WeShare.Transport
                         {
                             _progress.WriteWarning("The remote server {0} does not have repoId '{1}'", _targetLabel, _apiServer.ProjectId);
                         }
-                        throw new HgResumeOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
+                        throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
                     }
                     if (attempt < totalNumOfAttempts)
                     {
@@ -279,7 +279,7 @@ namespace WeShare.Transport
                     else
                     {
                         _progress.WriteWarning("Failed to contact server.");
-                        throw new HgResumeOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
+                        throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
                     }
                 }
                 catch (WebException e)
@@ -287,7 +287,7 @@ namespace WeShare.Transport
                     _progress.WriteError(e.Message);
                 }
             }
-            throw new HgResumeOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
+            throw new WeShareOperationFailed(String.Format("Failed to get remote revisions for {0}", _apiServer.ProjectId));
         }
 
         public void Push()
@@ -297,7 +297,7 @@ namespace WeShare.Transport
             {
                 const string errorMessage = "Push failed: A common revision could not be found with the server.";
                 _progress.WriteError(errorMessage);
-                throw new HgResumeOperationFailed(errorMessage);
+                throw new WeShareOperationFailed(errorMessage);
             }
 
             // create a bundle to push
@@ -323,7 +323,7 @@ namespace WeShare.Transport
                     {
                         const string errorMessage = "Push failed: Unable to create local bundle.";
                         _progress.WriteError(errorMessage);
-                        throw new HgResumeOperationFailed(errorMessage);
+                        throw new WeShareOperationFailed(errorMessage);
                     }
                 }
                 bundleFileInfo.Refresh();
@@ -391,7 +391,7 @@ namespace WeShare.Transport
                     continue;
                     //var errorMessage = "Push operation failed";
                     //_progress.WriteError(errorMessage);
-                    //throw new HgResumeOperationFailed(errorMessage);
+                    //throw new WeShareOperationFailed(errorMessage);
                 }
                 if (response.Status == PushStatus.Reset)
                 {
@@ -399,7 +399,7 @@ namespace WeShare.Transport
                     bundleHelper.Cleanup();
                     const string errorMessage = "Push failed: Server reset.";
                     _progress.WriteError(errorMessage);
-                    throw new HgResumeOperationFailed(errorMessage);
+                    throw new WeShareOperationFailed(errorMessage);
                 }
 
                 if (response.Status == PushStatus.Complete || req.StartOfWindow >= req.BundleSize)
@@ -619,7 +619,7 @@ namespace WeShare.Transport
             {
                 errorMessage = "Pull failed: No base revision.";
                 _progress.WriteError(errorMessage);
-                throw new HgResumeOperationFailed(errorMessage);
+                throw new WeShareOperationFailed(errorMessage);
             }
 
         	string bundleId = "";
@@ -699,7 +699,7 @@ namespace WeShare.Transport
                     req.StartOfWindow = bundleHelper.StartOfWindow;
                     //_progress.ProgressIndicator.Initialize();
                     //_progress.ProgressIndicator.Finish();
-                    //throw new HgResumeOperationFailed(errorMessage);
+                    //throw new WeShareOperationFailed(errorMessage);
                     continue;
                 }
                 if (response.Status == PullStatus.Reset)
@@ -768,7 +768,7 @@ namespace WeShare.Transport
             bundleHelper.Cleanup();
             errorMessage = "Pull operation failed";
             _progress.WriteError(errorMessage);
-            throw new HgResumeOperationFailed(errorMessage);
+            throw new WeShareOperationFailed(errorMessage);
         }
 
     	internal static string[] GetHashStringsFromRevisions(IEnumerable<Revision> branchHeadRevisions)
@@ -918,9 +918,9 @@ namespace WeShare.Transport
             {
             	Pull(new []{"0"});
             }
-            catch(HgResumeOperationFailed)
+            catch(WeShareOperationFailed)
             {
-                throw new HgResumeOperationFailed("Clone operation failed");
+                throw new WeShareOperationFailed("Clone operation failed");
             }
         }
 

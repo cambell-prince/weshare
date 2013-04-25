@@ -7,14 +7,14 @@ using System.Web;
 namespace WeShare.Transport
 {
 
-    public class HgResumeRestApiServer : IApiServer
+    public class WeShareRestApiServer : IApiServer
     {
         public const string APIVERSION = "03";
 
         private readonly Uri _url;
         private string _urlExecuted;
 
-        public HgResumeRestApiServer(string url)
+        public WeShareRestApiServer(string url)
         {
             _url = new Uri(url);
             _urlExecuted = "";
@@ -48,7 +48,7 @@ namespace WeShare.Transport
             req.PreAuthenticate = true;
             if (!_url.UserInfo.Contains(":"))
             {
-                throw new HgResumeException("Username or password were not supplied in custom location");
+                throw new WeShareException("Username or password were not supplied in custom location");
             }
             req.Credentials = new NetworkCredential(UserName, Password);
             req.Timeout = secondsBeforeTimeout * 1000; // timeout is in milliseconds

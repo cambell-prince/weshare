@@ -63,10 +63,10 @@
     <Compile Include="transport\BundleStorageManager.cs" />
     <Compile Include="transport\DummyClasses.cs" />
     <Compile Include="transport\HgExceptions.cs" />
-    <Compile Include="transport\HgResumeRestApiServer.cs" />
-    <Compile Include="transport\HgResumeTransport.cs" />
+    <Compile Include="transport\WeShareRestApiServer.cs" />
+    <Compile Include="transport\WeShareTransport.cs" />
     <Compile Include="transport\IApiServer.cs" />
-    <Compile Include="transport\IHgTransport.cs" />
+    <Compile Include="transport\IWeShareTransport.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="transport\MultiMap.cs" />

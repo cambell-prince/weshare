@@ -161,7 +161,7 @@ namespace WeShare.Transport
                 {
                     return _headers[_keyMap[needle]];
                 }
-                throw new HgResumeException("Something went wrong, since no version header could be retrieved!");
+                throw new WeShareException("Something went wrong, since no version header could be retrieved!");
             }
         }
 
@@ -174,7 +174,7 @@ namespace WeShare.Transport
                 {
                     return _headers[_keyMap[needle]];
                 }
-                throw new HgResumeException("Something went wrong, since no hgr status header could be retrieved!");
+                throw new WeShareException("Something went wrong, since no hgr status header could be retrieved!");
             }
         }
 

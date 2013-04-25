@@ -3,7 +3,7 @@ using System.Linq;
 
 namespace WeShare.Transport
 {
-    public interface IHgTransport
+    public interface IWeShareTransport
     {
         void Push();
         bool Pull();
