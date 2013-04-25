@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="hgresume-server" default="test" basedir=".">
+<project name="weshare-server" default="test" basedir=".">
 
-	<property name="application.name" value="hgresume-server" />
+	<property name="application.name" value="weshare-server" />
+	<property name="build.apiVersion" value="V01" />
+
+	<property name="build.number" value="0.0.0.0" />
+	<property name="build.output" value="output" />
+	<property name="build.webroot" value="src" />	
+	<property name="build.packageFile" value="${build.output}/${application.name}.tgz" />
+	<property name="build.installPath" value="/var/www/palaso.org_weshare/web/${build.apiVersion}" />
 
 	<property name="output.dir" value="output" />
 
@@ -14,10 +21,69 @@
 	</target>
 
 	<target name="test" depends="prepare">
-        <echo>##teamcity[importData type='junit' path='api/v03/${output.dir}/AllTestsV03.xml']</echo>
-		<exec executable="php" dir="test" output="${output.dir}/AllTestsV03.xml" error="${output.dir}/errorV03.log" failonerror="true">
+        <echo>##teamcity[importData type='junit' path='${output.dir}/AllTests.xml']</echo>
+		<exec executable="php" dir="test" output="${output.dir}/AllTests.xml" error="${output.dir}/error.log" failonerror="true">
 			<arg line="AllTests.php" />
 			<arg value="-j" />
 		</exec>
 	</target>
+	
+	<target name="cleanInstall" depends="">
+		<delete dir="${build.installPath}" quiet="true" />
+	</target>
+
+	<target name="version">
+		<script language="javascript">
+			<![CDATA[
+			// getting the value
+			buildnumber = project.getProperty("build.number");
+			index = buildnumber.lastIndexOf(".");
+			project.setProperty("version", buildnumber.substring(0, index));
+			]]>
+		</script>
+		<echo>${version}</echo>
+	</target>
+	
+	<target name="build" depends="" />
+
+	<target name="copyWeb">
+		<copy todir="${build.output}/web">
+			<fileset dir="${build.webroot}"/>
+		</copy>
+	</target>
+	
+	<target name="package" depends="prepare,build,copyWeb" >
+		<tar 
+			destfile="${build.packageFile}"
+			basedir="${build.output}/web"
+			excludes="${build.packageFile}"
+			longfile="gnu"
+			compression="gzip" />
+	</target>
+
+	<target name="install" depends="package,cleanInstall">
+		<untar src="${build.packageFile}" dest="${build.installPath}" compression="gzip" />
+		<!--
+		<chgrp type="both" group="www-data">
+			<dirset dir="${build.installPath}/web/sites/default/files/" />
+			<fileset dir="${build.installPath}/web/sites/default/files/">
+			    <include name="**/*"/>
+			</fileset>
+		</chgrp>
+		<chmod type="both" perm="g+w">
+			<dirset dir="${build.installPath}/web/sites/default/files/" />
+			<fileset dir="${build.installPath}/web/sites/default/files/">
+			    <include name="**/*"/>
+			</fileset>
+		</chmod>
+		-->
+		<antcall target="restartWebServer" />
+	</target>
+	
+	<target name="restartWebServer">
+		<exec executable="/etc/init.d/apache2">
+			<arg value="restart" />
+		</exec>
+	</target>
+	
 </project>
