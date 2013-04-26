@@ -25,15 +25,15 @@ class TestOfBundleHelper extends UnitTestCase {
 	}
 
 	function testGetOffset_Unset_ReturnsZero() {
-		$transId = __FUNCTION__;
-		$bundle = new BundleHelper($transId);
+		$transactionId = __FUNCTION__;
+		$bundle = new BundleHelper($transactionId);
 		$bundle->cleanUp();
 		$this->assertEqual(0, $bundle->getOffset());
 	}
 
 	function testSetGetOffset_SetThenGet_GetReturnsValueThatWasSet() {
-		$transId = __FUNCTION__;
-		$bundle = new BundleHelper($transId);
+		$transactionId = __FUNCTION__;
+		$bundle = new BundleHelper($transactionId);
 		$bundle->cleanUp();
 		$sow = 5023;
 		$bundle->setOffset($sow);
@@ -41,23 +41,23 @@ class TestOfBundleHelper extends UnitTestCase {
 	}
 	
 	function testGetState_GetReturnsDefault() {
-		$transId = __FUNCTION__;
-		$bundle = new BundleHelper($transId);
+		$transactionId = __FUNCTION__;
+		$bundle = new BundleHelper($transactionId);
 		$this->assertEqual(BundleHelper::State_Start, $bundle->getState());
 		$bundle->cleanUp();
 	}
 
 	function testSetGetState_GetReturnsSet() {
-		$transId = __FUNCTION__;
-		$bundle = new BundleHelper($transId);
+		$transactionId = __FUNCTION__;
+		$bundle = new BundleHelper($transactionId);
 		$bundle->setState(BundleHelper::State_Downloading);
 		$this->assertEqual(BundleHelper::State_Downloading, $bundle->getState());
 		$bundle->cleanUp();
 	}
 
 	function testSetGetHasProp_SetMultipleProps_GetPropsOkAndVerifyHasPropsOk() {
-		$transId = __FUNCTION__;
-		$bundle = new BundleHelper($transId);
+		$transactionId = __FUNCTION__;
+		$bundle = new BundleHelper($transactionId);
 		$bundle->cleanUp();
 		$this->assertFalse($bundle->hasProp("tip"));
 		$bundle->setProp("tip", "7890");

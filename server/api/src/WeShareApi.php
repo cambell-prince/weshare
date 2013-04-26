@@ -20,7 +20,7 @@ class WeShareAPI {
 	}
 
 	/**
-	 * Pushes a chunk of binary $data at $offset in the stream for $transId of $resourceId
+	 * Pushes a chunk of binary $data at $offset in the stream for $transactionId of $resourceId
 	 * @param string $resourceId
 	 * @param int $totalSize
 	 * @param int $offset
@@ -63,15 +63,15 @@ class WeShareAPI {
 		// Good to go ...
 		// ------------------
 		
-		$bundleHelper = new BundleHelper($transId);
-		switch ($bundleHelper->getState()) {
+		$bundle = new BundleHelper($transactionId);
+		switch ($bundle->getState()) {
 			case BundleHelper::State_Start:
-				$bundleHelper->setState(BundleHelper::State_Uploading);
+				$bundle->setState(BundleHelper::State_Uploading);
 				// Fall through to State_Uploading
 			case BundleHelper::State_Uploading:
 				// if the data sent falls before the start of window, mark it as received and reply with correct startOfWindow
 				// Fail if there is overlap or a mismatch between the start of window and the data offset
-				$startOfWindow = $bundleHelper->getOffset();
+				$startOfWindow = $bundle->getOffset();
 				if ($offset != $startOfWindow) { // these are usually equal.  It could be a client programming error if they are not
 					if ($offset < $startOfWindow) {
 						return new WeShareResponse(WeShareResponse::RECEIVED, array('sow' => $startOfWindow, 'Note' => 'server received duplicate data'));
@@ -98,35 +98,35 @@ class WeShareAPI {
 						for ($i = 0; $i < 4; $i++) {
 							if ($asyncRunner->isComplete()) {
 								if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
-									$responseValues = array('transId' => $transId);
+									$responseValues = array('transactionId' => $transactionId);
 									return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 								}
 								$bundle->cleanUp();
 								$asyncRunner->cleanUp();
-								$responseValues = array('transId' => $transId);
+								$responseValues = array('transactionId' => $transactionId);
 								return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
 							}
 							sleep(1);
 						}
-						$responseValues = array('transId' => $transId, 'sow' => $newSow);
+						$responseValues = array('transactionId' => $transactionId, 'sow' => $newSow);
 						return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 						// REVIEW Not sure what returning 'RECEIVED' will do to the client here, we've got all the data but need to wait for the unbundle to finish before sending success
 					} catch (UnrelatedRepoException $e) {
 						$bundle->setOffset(0);
 						$responseValues = array('Error' => substr($e->getMessage(), 0, 1000));
-						$responseValues['transId'] = $transId;
+						$responseValues['transactionId'] = $transactionId;
 						return new WeShareResponse(WeShareResponse::FAIL, $responseValues);
 					} catch (Exception $e) {
 						// REVIEW The RESET response may not make sense in this context anymore.  Why would we want to tell the client to resend a bundle if it failed the first time?  My guess is never.  cjh 2013-03
 						//echo $e->getMessage(); // FIXME
 						$bundle->setOffset(0);
 						$responseValues = array('Error' => substr($e->getMessage(), 0, 1000));
-						$responseValues['transId'] = $transId;
+						$responseValues['transactionId'] = $transactionId;
 						return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 					}
 				} else {
 					// received the chunk, but it's not the last one; we expect more chunks
-					$responseValues = array('transId' => $transId, 'sow' => $newSow);
+					$responseValues = array('transactionId' => $transactionId, 'sow' => $newSow);
 					return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 				}
 				break;
@@ -135,16 +135,16 @@ class WeShareAPI {
 				$asyncRunner = new AsyncRunner($bundleFilePath);
 				if ($asyncRunner->isComplete()) {
 					if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
-						$responseValues = array('transId' => $transId);
+						$responseValues = array('transactionId' => $transactionId);
 						// REVIEW The RESET response may not make sense in this context anymore.  Why would we want to tell the client to resend a bundle if it failed the first time?  My guess is never.  cjh 2013-03
 						return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 					}
 					$bundle->cleanUp();
 					$asyncRunner->cleanUp();
-					$responseValues = array('transId' => $transId);
+					$responseValues = array('transactionId' => $transactionId);
 					return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
 				} else {
-					$responseValues = array('transId' => $transId, 'sow' => $newSow);
+					$responseValues = array('transactionId' => $transactionId, 'sow' => $newSow);
 					return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 				}
 				break;
@@ -154,16 +154,16 @@ class WeShareAPI {
 	/**
 	 * 
 	 * Requests to pull a chunk of $chunkSize bytes at $offset in the bundle from $repoId using the 
-	 * $transId to identify this transaction.
+	 * $transactionId to identify this transaction.
 	 * @param string $repoId
 	 * @param array[string] $baseHashes
 	 * @param int $offset
 	 * @param int $chunkSize
-	 * @param string $transId
+	 * @param string $transactionId
 	 * @return WeShareResponse
 	 */
-	function pullBundleChunk($repoId, $baseHashes, $offset, $chunkSize, $transId) {
-		return $this->pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transId, false);
+	function pullBundleChunk($repoId, $baseHashes, $offset, $chunkSize, $transactionId) {
+		return $this->pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transactionId, false);
 	}
 
 	/**
@@ -172,12 +172,12 @@ class WeShareAPI {
 	 * @param array[string] $baseHashes expects just hashes, NOT hashes with a branch name appended
 	 * @param int $offset
 	 * @param int $chunkSize
-	 * @param string $transId
+	 * @param string $transactionId
 	 * @param bool $waitForBundleToFinish
 	 * @throws Exception
 	 * @return WeShareResponse
 	 */
-	function pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transId, $waitForBundleToFinish) {
+	function pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transactionId, $waitForBundleToFinish) {
 		try {
 			if (!is_array($baseHashes)) {
 				$baseHashes = array($baseHashes);
@@ -226,7 +226,7 @@ class WeShareAPI {
 				}
 			}
 			
-			$bundle = new BundleHelper($transId);
+			$bundle = new BundleHelper($transactionId);
 			$asyncRunner = new AsyncRunner($bundle->getBundleBaseFilePath());
 
 			$bundleCreatedInThisExecution = false;
@@ -267,7 +267,7 @@ class WeShareAPI {
 						$response->Values = array(
 								'bundleSize' => filesize($bundleFilename),
 								'chunkSize' => mb_strlen($data, "8bit"),
-								'transId' => $transId);
+								'transactionId' => $transactionId);
 						$response->Content = $data;
 					} else {
 						sleep(4);
@@ -278,7 +278,7 @@ class WeShareAPI {
 							$response->Values = array(
 									'bundleSize' => filesize($bundleFilename),
 									'chunkSize' => mb_strlen($data, "8bit"),
-									'transId' => $transId);
+									'transactionId' => $transactionId);
 							$response->Content = $data;
 						} else {
 							$response = new WeShareResponse(WeShareResponse::INPROGRESS);
@@ -290,7 +290,7 @@ class WeShareAPI {
 					$response->Values = array(
 							'bundleSize' => filesize($bundleFilename),
 							'chunkSize' => mb_strlen($data, "8bit"),
-							'transId' => $transId);
+							'transactionId' => $transactionId);
 					$response->Content = $data;
 					if ($offset > filesize($bundleFilename)) {
 						throw new ValidationException("offset $offset is greater than or equal to bundleSize " . filesize($bundleFilename));
@@ -348,8 +348,8 @@ class WeShareAPI {
 		return $hgresponse;
 	}
 
-	function finishPushBundle($transId) {
-		$bundle = new BundleHelper($transId);
+	function finishPushBundle($transactionId) {
+		$bundle = new BundleHelper($transactionId);
 		if ($bundle->cleanUp()) {
 			return new WeShareResponse(WeShareResponse::SUCCESS);
 		} else {
@@ -357,8 +357,8 @@ class WeShareAPI {
 		}
 	}
 
-	function finishPullBundle($transId) {
-		$bundle = new BundleHelper($transId);
+	function finishPullBundle($transactionId) {
+		$bundle = new BundleHelper($transactionId);
 		if ($bundle->hasProp("tip") and $bundle->hasProp("repoId")) {
 			$repoPath = $this->getRepoPath($bundle->getProp("repoId"));
 			if (is_dir($repoPath)) { // a redundant check (sort of) to prevent tests from throwing that recycle the same transid

@@ -1,5 +1,10 @@
 <?php
 
+/**
+ * This class manages the meta data while a Bundle is in transit.
+ * @author cambell
+ *
+ */
 class BundleHelper {
 	
 	const State_Start       = 'Start';
