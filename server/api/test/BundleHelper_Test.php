@@ -6,12 +6,12 @@ require_once(SourcePath . "/BundleHelper.php");
 
 class TestOfBundleHelper extends UnitTestCase {
 
-	function testcleanUp_BundleFileExists_DeletesBundleFile() {
+	function testuploadPost_BundleFileExists_DeletesBundleFile() {
 		$bundle = new BundleHelper(__FUNCTION__);
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 		$bundleFilename = $bundle->getBundleFileName();
 		file_put_contents($bundleFilename, "bundle data");
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 		$this->assertFalse(is_file($bundleFilename));
 	}
 
@@ -27,14 +27,14 @@ class TestOfBundleHelper extends UnitTestCase {
 	function testGetOffset_Unset_ReturnsZero() {
 		$transactionId = __FUNCTION__;
 		$bundle = new BundleHelper($transactionId);
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 		$this->assertEqual(0, $bundle->getOffset());
 	}
 
 	function testSetGetOffset_SetThenGet_GetReturnsValueThatWasSet() {
 		$transactionId = __FUNCTION__;
 		$bundle = new BundleHelper($transactionId);
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 		$sow = 5023;
 		$bundle->setOffset($sow);
 		$this->assertEqual($sow, $bundle->getOffset());
@@ -44,7 +44,7 @@ class TestOfBundleHelper extends UnitTestCase {
 		$transactionId = __FUNCTION__;
 		$bundle = new BundleHelper($transactionId);
 		$this->assertEqual(BundleHelper::State_Start, $bundle->getState());
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 	}
 
 	function testSetGetState_GetReturnsSet() {
@@ -52,13 +52,13 @@ class TestOfBundleHelper extends UnitTestCase {
 		$bundle = new BundleHelper($transactionId);
 		$bundle->setState(BundleHelper::State_Downloading);
 		$this->assertEqual(BundleHelper::State_Downloading, $bundle->getState());
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 	}
 
 	function testSetGetHasProp_SetMultipleProps_GetPropsOkAndVerifyHasPropsOk() {
 		$transactionId = __FUNCTION__;
 		$bundle = new BundleHelper($transactionId);
-		$bundle->cleanUp();
+		$bundle->uploadPost();
 		$this->assertFalse($bundle->hasProp("tip"));
 		$bundle->setProp("tip", "7890");
 		$this->assertTrue($bundle->hasProp("tip"));

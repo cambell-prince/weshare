@@ -8,10 +8,10 @@
 class BundleHelper {
 	
 	const State_Start       = 'Start';
-	const State_DownloadPre = 'DownloadPre';
-	const State_Downloading = 'Downloading';
-	const State_Uploading   = 'Uploading';
-	const State_UploadPost  = 'UploadPost';
+	const State_DownloadPre = 'DownloadPre'; // TODO CP 2013-04 PullPre
+	const State_Downloading = 'Downloading'; // TODO CP 2013-04 Pull
+	const State_Uploading   = 'Uploading';   // TODO CP 2013-04 Push
+	const State_UploadPost  = 'UploadPost';  // TODO CP 2013-04 PushPost
 	
 	private $_transactionId;
 	private $_basePath;
@@ -44,7 +44,7 @@ class BundleHelper {
 	/**
 	 * Removes the bundle file and the meta file
 	 */
-	public function cleanUp() {
+	public function uploadPost() {
 		if (file_exists($this->getBundleFileName())) {
 			unlink($this->getBundleFileName());
 		}

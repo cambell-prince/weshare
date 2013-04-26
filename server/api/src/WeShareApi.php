@@ -101,7 +101,7 @@ class WeShareAPI {
 									$responseValues = array('transactionId' => $transactionId);
 									return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 								}
-								$bundle->cleanUp();
+								$bundle->uploadPost();
 								$asyncRunner->cleanUp();
 								$responseValues = array('transactionId' => $transactionId);
 								return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
@@ -139,7 +139,7 @@ class WeShareAPI {
 						// REVIEW The RESET response may not make sense in this context anymore.  Why would we want to tell the client to resend a bundle if it failed the first time?  My guess is never.  cjh 2013-03
 						return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 					}
-					$bundle->cleanUp();
+					$bundle->uploadPost();
 					$asyncRunner->cleanUp();
 					$responseValues = array('transactionId' => $transactionId);
 					return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
@@ -350,7 +350,7 @@ class WeShareAPI {
 
 	function finishPushBundle($transactionId) {
 		$bundle = new BundleHelper($transactionId);
-		if ($bundle->cleanUp()) {
+		if ($bundle->uploadPost()) {
 			return new WeShareResponse(WeShareResponse::SUCCESS);
 		} else {
 			return new WeShareResponse(WeShareResponse::FAIL);
@@ -365,12 +365,12 @@ class WeShareAPI {
 				$hg = new ResourceBundler($repoPath);
 				// check that the repo has not been updated, since a pull was started
 				if ($bundle->getProp("tip") != $hg->getTip()) {
-					$bundle->cleanUp();
+					$bundle->uploadPost();
 					return new WeShareResponse(WeShareResponse::RESET);
 				}
 			}
 		}
-		if ($bundle->cleanUp()) {
+		if ($bundle->uploadPost()) {
 			return new WeShareResponse(WeShareResponse::SUCCESS);
 		}
 		return new WeShareResponse(WeShareResponse::FAIL);
