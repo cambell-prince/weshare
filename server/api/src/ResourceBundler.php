@@ -2,7 +2,7 @@
 
 require_once('AsyncRunner.php');
 
-class HgRunner {
+class ResourceBundler {
 	var $repoPath;
 	var $logState;
 	const DEFAULT_HG = "/var/vcs/public";
@@ -17,7 +17,7 @@ class HgRunner {
 	}
 
 	private function logEvent($message) {
-		$logFilename = $this->repoPath . "/hgRunner.log";
+		$logFilename = $this->repoPath . "/ResourceBundler.log";
 		$timestamp = date("YMd \TH.i");
 		if (!$this->logState) {
 			$this->logState = true;

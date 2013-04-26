@@ -1,7 +1,7 @@
 <?php
 
 require_once("WeShareResponse.php");
-require_once("HgRunner.php");
+require_once("ResourceBundler.php");
 require_once("BundleHelper.php");
 
 class WeShareAPI {
@@ -200,7 +200,7 @@ class WeShareAPI {
 				return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'invalid offset'));
 			}
 			
-			$hg = new HgRunner($repoPath); // REVIEW The hg based checks only need to be done once per transaction. Would be nice to move them inside the state switch CP 2012-06
+			$hg = new ResourceBundler($repoPath); // REVIEW The hg based checks only need to be done once per transaction. Would be nice to move them inside the state switch CP 2012-06
 			// $basehashes
 			// TODO This might be bogus, the given baseHash may well be a baseHash that exists in a future push, and we don't have it right now. CP 2012-08
 			if (!$hg->isValidBase($baseHashes)) {
@@ -334,7 +334,7 @@ class WeShareAPI {
 		try {
 			$repoPath = $this->getRepoPath($repoId);
 			if ($repoPath) {
-				$hg = new HgRunner($repoPath);
+				$hg = new ResourceBundler($repoPath);
 				$revisionList = $hg->getRevisions($offset, $quantity);
 				$hgresponse = new WeShareResponse(WeShareResponse::SUCCESS, array(), implode("|",$revisionList));
 			}
@@ -362,7 +362,7 @@ class WeShareAPI {
 		if ($bundle->hasProp("tip") and $bundle->hasProp("repoId")) {
 			$repoPath = $this->getRepoPath($bundle->getProp("repoId"));
 			if (is_dir($repoPath)) { // a redundant check (sort of) to prevent tests from throwing that recycle the same transid
-				$hg = new HgRunner($repoPath);
+				$hg = new ResourceBundler($repoPath);
 				// check that the repo has not been updated, since a pull was started
 				if ($bundle->getProp("tip") != $hg->getTip()) {
 					$bundle->cleanUp();

@@ -136,7 +136,7 @@ class TestOfWeShareAPI extends UnitTestCase {
 
 	function testPushBundleChunk_PushOneChunkThenRepoChanges_PushContinuesSuccessfully() {
 		$this->testEnvironment->makeRepo(TestPath . "/data/sampleHgRepo.zip");
-		$hg = new HgRunner($this->testEnvironment->Path);
+		$hg = new ResourceBundler($this->testEnvironment->Path);
 		$transId = __FUNCTION__;
 		$this->api->finishPushBundle($transId);
 		$filename = "fileToAdd.txt";
@@ -164,7 +164,7 @@ class TestOfWeShareAPI extends UnitTestCase {
 	
 	function testPushBundleChunk_InitializedRepoWithZeroChangesets_BundleSuccessfullyApplied() {
 		$this->testEnvironment->makeRepo(TestPath . "/data/emptyHgRepo.zip");
-		$hg = new HgRunner($this->testEnvironment->Path);
+		$hg = new ResourceBundler($this->testEnvironment->Path);
 		$transId = __FUNCTION__;
 		$this->api->finishPushBundle($transId);
 		
@@ -361,7 +361,7 @@ class TestOfWeShareAPI extends UnitTestCase {
 		$this->api->finishPullBundle($transId); // reset things on server
 		$hash = trim(file_get_contents(TestPath . "/data/sample.bundle.hash"));
 
-		$hg = new HgRunner($this->testEnvironment->Path);
+		$hg = new ResourceBundler($this->testEnvironment->Path);
 		$filename = "fileToAdd.txt";
 		$filePath = $this->testEnvironment->Path . "/" . $filename;
 		file_put_contents($filePath, "sample data to add");
