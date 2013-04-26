@@ -19,9 +19,9 @@ class TestOfWeShareAPI extends UnitTestCase {
 		$this->testEnvironment->dispose();
 	}
 
-	// finishPullBundle is a wrapper for BundleHelper->cleanUpPull, and that is already tested
+	// finishPullBundle is a wrapper for ResourceHelper->cleanUpPull, and that is already tested
 
-	// finishPushBundle is a wrapper for BundleHelper->cleanUpPush, and that is already tested
+	// finishPushBundle is a wrapper for ResourceHelper->cleanUpPush, and that is already tested
 
 	function testPushBundleChunk_BogusId_UnknownCode() {
 		$this->testEnvironment->makeRepo(TestPath . "/data/sampleHgRepo.zip");

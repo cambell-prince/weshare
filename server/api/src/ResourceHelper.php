@@ -1,6 +1,6 @@
 <?php
 
-class BundleHelper {
+class ResourceHelper {
 	
 	const State_Start       = 'Start';
 	const State_Bundle      = 'Bundle';
@@ -12,7 +12,7 @@ class BundleHelper {
 	private $_basePath;
 	
 	public function __construct($id) {
-		if(!BundleHelper::validateAlphaNumeric($id)) {
+		if(!ResourceHelper::validateAlphaNumeric($id)) {
 			throw new ValidationException("transId $id did not validate as alpha numeric!");
 		}
 		$this->_transactionId = $id;
@@ -23,7 +23,7 @@ class BundleHelper {
 		$path = "{$this->_basePath}";
 		if (!is_dir($path)) {
 			if (!mkdir($path, 0755, true)) {
-				throw new BundleHelperException("Failed to create repo dir: $path");
+				throw new ResourceHelperException("Failed to create repo dir: $path");
 			}
 		}
 		return $path;
