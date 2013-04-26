@@ -1,21 +1,21 @@
 <?php
 
-class ResourceHelper {
+class BundleHelper {
 	
 	const State_Start       = 'Start';
-	const State_Bundle      = 'Bundle';
+	const State_DownloadPre = 'DownloadPre';
 	const State_Downloading = 'Downloading';
 	const State_Uploading   = 'Uploading';
-	const State_Unbundle    = 'Unbundle';
+	const State_UploadPost  = 'UploadPost';
 	
 	private $_transactionId;
 	private $_basePath;
 	
-	public function __construct($id) {
-		if(!ResourceHelper::validateAlphaNumeric($id)) {
-			throw new ValidationException("transId $id did not validate as alpha numeric!");
+	public function __construct($transactionId) {
+		if(!BundleHelper::validateAlphaNumeric($transactionId)) {
+			throw new ValidationException("transactionId $transactionId is not alpha numeric");
 		}
-		$this->_transactionId = $id;
+		$this->_transactionId = $transactionId;
 		$this->_basePath = CACHE_PATH;
 	}
 
@@ -23,7 +23,7 @@ class ResourceHelper {
 		$path = "{$this->_basePath}";
 		if (!is_dir($path)) {
 			if (!mkdir($path, 0755, true)) {
-				throw new ResourceHelperException("Failed to create repo dir: $path");
+				throw new BundleHelperException("Failed to create repo dir: $path");
 			}
 		}
 		return $path;

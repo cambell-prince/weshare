@@ -20,15 +20,15 @@ class WeShareAPI {
 	}
 
 	/**
-	 * Pushes a chunk of binary $data at $offset in the stream for $transId in $repoId
-	 * @param string $repoId
-	 * @param int $bundleSize
+	 * Pushes a chunk of binary $data at $offset in the stream for $transId of $resourceId
+	 * @param string $resourceId
+	 * @param int $totalSize
 	 * @param int $offset
 	 * @param byte[] $data
-	 * @param string $transId
+	 * @param string $transactionId
 	 * @return WeShareResponse
 	 */
-	function pushBundleChunk($repoId, $bundleSize, $offset, $data, $transId) {
+	function pushBundleChunk($resourceId, $bundleSize, $offset, $data, $transactionId) {
 		$availability = $this->isAvailable();
 		if ($availability->Code == WeShareResponse::NOTAVAILABLE) {
 			return $availability;
@@ -37,13 +37,11 @@ class WeShareAPI {
 		// ------------------
 		// Check the input parameters
 		// ------------------
-		// $repoId
-		$repoPath = $this->getRepoPath($repoId);
-		if (!$repoPath) {
+		// $resouceId
+		$resourcePath = $this->getResourcePath($resourceId);
+		if (!$resourcePath) {
 			return new WeShareResponse(WeShareResponse::UNKNOWNID);
 		}
-		$hg = new HgRunner($repoPath);
-
 		// $offset
 		if ($offset < 0 or $offset >= $bundleSize) {
 			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'invalid offset'));
@@ -54,26 +52,26 @@ class WeShareAPI {
 			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'no data sent'));
 		}
 		if ($dataSize > $bundleSize - $offset) {
-			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'data sent is larger than remaining bundle size'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'data sent is larger than remaining total transmit size'));
 		}
 		// $bundleSize
 		if (intval($bundleSize) < 0) {
-			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'negative bundle size'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'negative transmit size'));
 		}
 
 		// ------------------
 		// Good to go ...
 		// ------------------
 		
-		$bundle = new BundleHelper($transId);
-		switch ($bundle->getState()) {
+		$bundleHelper = new BundleHelper($transId);
+		switch ($bundleHelper->getState()) {
 			case BundleHelper::State_Start:
-				$bundle->setState(BundleHelper::State_Uploading);
+				$bundleHelper->setState(BundleHelper::State_Uploading);
 				// Fall through to State_Uploading
 			case BundleHelper::State_Uploading:
 				// if the data sent falls before the start of window, mark it as received and reply with correct startOfWindow
 				// Fail if there is overlap or a mismatch between the start of window and the data offset
-				$startOfWindow = $bundle->getOffset();
+				$startOfWindow = $bundleHelper->getOffset();
 				if ($offset != $startOfWindow) { // these are usually equal.  It could be a client programming error if they are not
 					if ($offset < $startOfWindow) {
 						return new WeShareResponse(WeShareResponse::RECEIVED, array('sow' => $startOfWindow, 'Note' => 'server received duplicate data'));
@@ -92,7 +90,7 @@ class WeShareAPI {
 				
 				// for the final chunk; assemble the bundle and apply the bundle
 				if ($newSow == $bundleSize) {
-					$bundle->setState(BundleHelper::State_Unbundle);
+					$bundle->setState(BundleHelper::State_UploadPost);
 					try {  // REVIEW Would be nice if the try / catch logic was universal. ie one policy for the api function. CP 2012-06
 						$bundleFilePath = $bundle->getBundleFileName();
 						$asyncRunner = new AsyncRunner($bundleFilePath);
@@ -132,7 +130,7 @@ class WeShareAPI {
 					return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 				}
 				break;
-			case BundleHelper::State_Unbundle:
+			case BundleHelper::State_UploadPost:
 				$bundleFilePath = $bundle->getBundleFileName();
 				$asyncRunner = new AsyncRunner($bundleFilePath);
 				if ($asyncRunner->isComplete()) {
@@ -248,12 +246,12 @@ class WeShareAPI {
 				}
 				$bundle->setProp("tip", $hg->getTip());
 				$bundle->setProp("repoId", $repoId);
-				$bundle->setState(BundleHelper::State_Bundle);
+				$bundle->setState(BundleHelper::State_DownloadPre);
 			}
 			
 			$response = new WeShareResponse(WeShareResponse::SUCCESS);
 			switch ($bundle->getState()) {
-				case BundleHelper::State_Bundle:
+				case BundleHelper::State_DownloadPre:
 					if ($asyncRunner->isComplete()) {
 						if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
 							$response = new WeShareResponse(WeShareResponse::FAIL);
