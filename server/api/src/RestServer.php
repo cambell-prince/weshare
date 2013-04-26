@@ -1,6 +1,6 @@
 <?php
 
-require_once("HgResumeResponse.php");
+require_once("WeShareResponse.php");
 
 class RestServer {
 	public $url;
@@ -60,7 +60,7 @@ class RestServer {
 	}
 
 	static function serverError($msg) {
-		$response = new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => $msg), $msg);
+		$response = new WeShareResponse(WeShareResponse::FAIL, array('Error' => $msg), $msg);
 		RestServer::sendResponse($response, false);
 		exit();
 	}
@@ -110,39 +110,39 @@ class RestServer {
 		$codeString = '';
 		// map resume responsecode to http status code
 		switch ($hgrCode) {
-			case HgResumeResponse::SUCCESS:
+			case WeShareResponse::SUCCESS:
 				$httpcode = "200 OK";
 				$codeString = 'SUCCESS';
 				break;
-			case HgResumeResponse::RECEIVED:
+			case WeShareResponse::RECEIVED:
 				$httpcode = "202 Accepted";
 				$codeString = 'RECEIVED';
 				break;
-			case HgResumeResponse::RESET:
+			case WeShareResponse::RESET:
 				$httpcode = "400 Bad Request";
 				$codeString = 'RESET';
 				break;
-			case HgResumeResponse::UNAUTHORIZED:
+			case WeShareResponse::UNAUTHORIZED:
 				$httpcode = "401 Unauthorized";
 				$codeString = 'UNAUTHORIZED';
 				break;
-			case HgResumeResponse::FAIL:
+			case WeShareResponse::FAIL:
 				$httpcode = "400 Bad Request";
 				$codeString = 'FAIL';
 				break;
-			case HgResumeResponse::UNKNOWNID:
+			case WeShareResponse::UNKNOWNID:
 				$httpcode = "400 Bad Request";
 				$codeString = 'UNKNOWNID';
 				break;
-			case HgResumeResponse::NOCHANGE:
+			case WeShareResponse::NOCHANGE:
 				$httpcode = "304 Not Modified";
 				$codeString = 'NOCHANGE';
 				break;
-			case HgResumeResponse::NOTAVAILABLE:
+			case WeShareResponse::NOTAVAILABLE:
 				$httpcode = "503 Service Unavailable";
 				$codeString = 'NOTAVAILABLE';
 				break;
-			case HgResumeResponse::INPROGRESS:
+			case WeShareResponse::INPROGRESS:
 				$httpcode = "202 Accepted";
 				$codeString = 'INPROGRESS';
 				break;

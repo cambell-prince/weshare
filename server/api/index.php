@@ -2,10 +2,10 @@
 
 require_once('src/config.php');
 require_once('src/RestServer.php');
-require_once('src/HgResumeApi.php');
+require_once('src/WeShareApi.php');
 
-//$repoPath = sys_get_temp_dir() . "/hgresume_repoTestEnvironment";
-$api = new HgResumeAPI($repoSearchPaths);
+//$repoPath = sys_get_temp_dir() . "/WeShare_repoTestEnvironment";
+$api = new WeShareAPI($repoSearchPaths);
 
 // second param is debug mode
 $restServer = new RestServer($api, false);

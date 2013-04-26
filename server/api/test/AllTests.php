@@ -8,8 +8,8 @@ class AllTests extends TestSuite {
 		$this->addFile(TestPath . '/AsyncRunner_Test.php');
 		$this->addFile(TestPath . '/BundleHelper_Test.php');
 		$this->addFile(TestPath . '/HgRunner_Test.php');
-		$this->addFile(TestPath . '/HgResumeApi_Test.php');
-		$this->addFile(TestPath . '/HgResumeResponse_Test.php');
+		$this->addFile(TestPath . '/WeShareApi_Test.php');
+		$this->addFile(TestPath . '/WeShareResponse_Test.php');
 	}
 }
 

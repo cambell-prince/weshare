@@ -29,7 +29,7 @@ class HgRepoTestEnvironment {
 	var $RepoId;
 
 	function __construct() {
-		$this->BasePath = sys_get_temp_dir() . "/hgresume_repoTestEnvironment";
+		$this->BasePath = sys_get_temp_dir() . "/WeShare_repoTestEnvironment";
 		recursiveDelete($this->BasePath);
 		if (!is_dir($this->BasePath)) {
 			mkdir($this->BasePath);

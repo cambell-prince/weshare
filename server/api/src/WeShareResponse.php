@@ -1,6 +1,6 @@
 <?php
 
-class HgResumeResponse {
+class WeShareResponse {
 	/* SUCCESS
 	 * Operation completed successfully.
 	 * In the context of a PushDataChunk, this indicates that the final chunk

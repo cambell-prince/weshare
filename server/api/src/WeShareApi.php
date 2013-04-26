@@ -1,10 +1,10 @@
 <?php
 
-require_once("HgResumeResponse.php");
+require_once("WeShareResponse.php");
 require_once("HgRunner.php");
 require_once("BundleHelper.php");
 
-class HgResumeAPI {
+class WeShareAPI {
 	var $RepoBasePaths;
 
 	// Note: API_VERSION is defined in config.php
@@ -26,11 +26,11 @@ class HgResumeAPI {
 	 * @param int $offset
 	 * @param byte[] $data
 	 * @param string $transId
-	 * @return HgResumeResponse
+	 * @return WeShareResponse
 	 */
 	function pushBundleChunk($repoId, $bundleSize, $offset, $data, $transId) {
 		$availability = $this->isAvailable();
-		if ($availability->Code == HgResumeResponse::NOTAVAILABLE) {
+		if ($availability->Code == WeShareResponse::NOTAVAILABLE) {
 			return $availability;
 		}
 
@@ -40,25 +40,25 @@ class HgResumeAPI {
 		// $repoId
 		$repoPath = $this->getRepoPath($repoId);
 		if (!$repoPath) {
-			return new HgResumeResponse(HgResumeResponse::UNKNOWNID);
+			return new WeShareResponse(WeShareResponse::UNKNOWNID);
 		}
 		$hg = new HgRunner($repoPath);
 
 		// $offset
 		if ($offset < 0 or $offset >= $bundleSize) {
-			return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'invalid offset'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'invalid offset'));
 		}
 		// $data
 		$dataSize = mb_strlen($data, "8bit");
 		if ($dataSize == 0) {
-			return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'no data sent'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'no data sent'));
 		}
 		if ($dataSize > $bundleSize - $offset) {
-			return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'data sent is larger than remaining bundle size'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'data sent is larger than remaining bundle size'));
 		}
 		// $bundleSize
 		if (intval($bundleSize) < 0) {
-			return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'negative bundle size'));
+			return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'negative bundle size'));
 		}
 
 		// ------------------
@@ -76,9 +76,9 @@ class HgResumeAPI {
 				$startOfWindow = $bundle->getOffset();
 				if ($offset != $startOfWindow) { // these are usually equal.  It could be a client programming error if they are not
 					if ($offset < $startOfWindow) {
-						return new HgResumeResponse(HgResumeResponse::RECEIVED, array('sow' => $startOfWindow, 'Note' => 'server received duplicate data'));
+						return new WeShareResponse(WeShareResponse::RECEIVED, array('sow' => $startOfWindow, 'Note' => 'server received duplicate data'));
 					} else {
-						return new HgResumeResponse(HgResumeResponse::FAIL, array('sow' => $startOfWindow, 'Error' => "data sent ($dataSize) with offset ($offset) falls after server's start of window ($startOfWindow)"));
+						return new WeShareResponse(WeShareResponse::FAIL, array('sow' => $startOfWindow, 'Error' => "data sent ($dataSize) with offset ($offset) falls after server's start of window ($startOfWindow)"));
 					}
 				}
 				// write chunk data to bundle file
@@ -101,35 +101,35 @@ class HgResumeAPI {
 							if ($asyncRunner->isComplete()) {
 								if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
 									$responseValues = array('transId' => $transId);
-									return new HgResumeResponse(HgResumeResponse::RESET, $responseValues);
+									return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 								}
 								$bundle->cleanUp();
 								$asyncRunner->cleanUp();
 								$responseValues = array('transId' => $transId);
-								return new HgResumeResponse(HgResumeResponse::SUCCESS, $responseValues);
+								return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
 							}
 							sleep(1);
 						}
 						$responseValues = array('transId' => $transId, 'sow' => $newSow);
-						return new HgResumeResponse(HgResumeResponse::RECEIVED, $responseValues);
+						return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 						// REVIEW Not sure what returning 'RECEIVED' will do to the client here, we've got all the data but need to wait for the unbundle to finish before sending success
 					} catch (UnrelatedRepoException $e) {
 						$bundle->setOffset(0);
 						$responseValues = array('Error' => substr($e->getMessage(), 0, 1000));
 						$responseValues['transId'] = $transId;
-						return new HgResumeResponse(HgResumeResponse::FAIL, $responseValues);
+						return new WeShareResponse(WeShareResponse::FAIL, $responseValues);
 					} catch (Exception $e) {
 						// REVIEW The RESET response may not make sense in this context anymore.  Why would we want to tell the client to resend a bundle if it failed the first time?  My guess is never.  cjh 2013-03
 						//echo $e->getMessage(); // FIXME
 						$bundle->setOffset(0);
 						$responseValues = array('Error' => substr($e->getMessage(), 0, 1000));
 						$responseValues['transId'] = $transId;
-						return new HgResumeResponse(HgResumeResponse::RESET, $responseValues);
+						return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 					}
 				} else {
 					// received the chunk, but it's not the last one; we expect more chunks
 					$responseValues = array('transId' => $transId, 'sow' => $newSow);
-					return new HgResumeResponse(HgResumeResponse::RECEIVED, $responseValues);
+					return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 				}
 				break;
 			case BundleHelper::State_Unbundle:
@@ -139,15 +139,15 @@ class HgResumeAPI {
 					if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
 						$responseValues = array('transId' => $transId);
 						// REVIEW The RESET response may not make sense in this context anymore.  Why would we want to tell the client to resend a bundle if it failed the first time?  My guess is never.  cjh 2013-03
-						return new HgResumeResponse(HgResumeResponse::RESET, $responseValues);
+						return new WeShareResponse(WeShareResponse::RESET, $responseValues);
 					}
 					$bundle->cleanUp();
 					$asyncRunner->cleanUp();
 					$responseValues = array('transId' => $transId);
-					return new HgResumeResponse(HgResumeResponse::SUCCESS, $responseValues);
+					return new WeShareResponse(WeShareResponse::SUCCESS, $responseValues);
 				} else {
 					$responseValues = array('transId' => $transId, 'sow' => $newSow);
-					return new HgResumeResponse(HgResumeResponse::RECEIVED, $responseValues);
+					return new WeShareResponse(WeShareResponse::RECEIVED, $responseValues);
 				}
 				break;
 		}
@@ -162,7 +162,7 @@ class HgResumeAPI {
 	 * @param int $offset
 	 * @param int $chunkSize
 	 * @param string $transId
-	 * @return HgResumeResponse
+	 * @return WeShareResponse
 	 */
 	function pullBundleChunk($repoId, $baseHashes, $offset, $chunkSize, $transId) {
 		return $this->pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transId, false);
@@ -177,7 +177,7 @@ class HgResumeAPI {
 	 * @param string $transId
 	 * @param bool $waitForBundleToFinish
 	 * @throws Exception
-	 * @return HgResumeResponse
+	 * @return WeShareResponse
 	 */
 	function pullBundleChunkInternal($repoId, $baseHashes, $offset, $chunkSize, $transId, $waitForBundleToFinish) {
 		try {
@@ -185,7 +185,7 @@ class HgResumeAPI {
 				$baseHashes = array($baseHashes);
 			}
 			$availability = $this->isAvailable();
-			if ($availability->Code == HgResumeResponse::NOTAVAILABLE) {
+			if ($availability->Code == WeShareResponse::NOTAVAILABLE) {
 				return $availability;
 			}
 	
@@ -195,18 +195,18 @@ class HgResumeAPI {
 			// $repoId
 			$repoPath = $this->getRepoPath($repoId);
 			if (!$repoPath) {
-				return new HgResumeResponse(HgResumeResponse::UNKNOWNID);
+				return new WeShareResponse(WeShareResponse::UNKNOWNID);
 			}
 			// $offset
 			if ($offset < 0) {
-				return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'invalid offset'));
+				return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'invalid offset'));
 			}
 			
 			$hg = new HgRunner($repoPath); // REVIEW The hg based checks only need to be done once per transaction. Would be nice to move them inside the state switch CP 2012-06
 			// $basehashes
 			// TODO This might be bogus, the given baseHash may well be a baseHash that exists in a future push, and we don't have it right now. CP 2012-08
 			if (!$hg->isValidBase($baseHashes)) {
-				return new HgResumeResponse(HgResumeResponse::FAIL, array('Error' => 'invalid baseHash'));
+				return new WeShareResponse(WeShareResponse::FAIL, array('Error' => 'invalid baseHash'));
 			}
 
 			// ------------------
@@ -224,7 +224,7 @@ class HgResumeAPI {
 					}
 				}
 				if ($areEqual) {
-					return new HgResumeResponse(HgResumeResponse::NOCHANGE);
+					return new WeShareResponse(WeShareResponse::NOCHANGE);
 				}
 			}
 			
@@ -238,7 +238,7 @@ class HgResumeAPI {
 				// if the client requests an offset greater than 0, but the bundle needed to be created on this request,
 				// send the RESET response since the server's bundle cache has aparently expired.
 				if ($offset > 0) {
-					return new HgResumeResponse(HgResumeResponse::RESET); // TODO Add in error information in here saying that the bundle isn't present CP 2012-06
+					return new WeShareResponse(WeShareResponse::RESET); // TODO Add in error information in here saying that the bundle isn't present CP 2012-06
 				}
 				// At this point we can presume that $offset == 0 so this is the first pull request; make a new bundle
 				if ($waitForBundleToFinish) {
@@ -251,12 +251,12 @@ class HgResumeAPI {
 				$bundle->setState(BundleHelper::State_Bundle);
 			}
 			
-			$response = new HgResumeResponse(HgResumeResponse::SUCCESS);
+			$response = new WeShareResponse(WeShareResponse::SUCCESS);
 			switch ($bundle->getState()) {
 				case BundleHelper::State_Bundle:
 					if ($asyncRunner->isComplete()) {
 						if (BundleHelper::bundleOutputHasErrors($asyncRunner->getOutput())) {
-							$response = new HgResumeResponse(HgResumeResponse::FAIL);
+							$response = new WeShareResponse(WeShareResponse::FAIL);
 							$response->Values = array('Error' => substr(file_get_contents($bundleTimeFile), 0, 1000));
 							return $response;
 						}
@@ -283,7 +283,7 @@ class HgResumeAPI {
 									'transId' => $transId);
 							$response->Content = $data;
 						} else {
-							$response = new HgResumeResponse(HgResumeResponse::INPROGRESS);
+							$response = new WeShareResponse(WeShareResponse::INPROGRESS);
 						}
 					}
 					break;
@@ -304,7 +304,7 @@ class HgResumeAPI {
 			
 		} catch (Exception $e) {
 			$response = array('Error' => substr($e->getMessage(), 0, 1000));
-			return new HgResumeResponse(HgResumeResponse::FAIL, $response);
+			return new WeShareResponse(WeShareResponse::FAIL, $response);
 		}
 	}
 	
@@ -330,7 +330,7 @@ class HgResumeAPI {
 
 	function getRevisions($repoId, $offset, $quantity) {
 		$availability = $this->isAvailable();
-		if ($availability->Code == HgResumeResponse::NOTAVAILABLE) {
+		if ($availability->Code == WeShareResponse::NOTAVAILABLE) {
 			return $availability;
 		}
 		try {
@@ -338,14 +338,14 @@ class HgResumeAPI {
 			if ($repoPath) {
 				$hg = new HgRunner($repoPath);
 				$revisionList = $hg->getRevisions($offset, $quantity);
-				$hgresponse = new HgResumeResponse(HgResumeResponse::SUCCESS, array(), implode("|",$revisionList));
+				$hgresponse = new WeShareResponse(WeShareResponse::SUCCESS, array(), implode("|",$revisionList));
 			}
 			else {
-				$hgresponse = new HgResumeResponse(HgResumeResponse::UNKNOWNID);
+				$hgresponse = new WeShareResponse(WeShareResponse::UNKNOWNID);
 			}
 		} catch (Exception $e) {
 			$response = array('Error' => substr($e->getMessage(), 0, 1000));
-			$hgresponse = new HgResumeResponse(HgResumeResponse::FAIL, $response);
+			$hgresponse = new WeShareResponse(WeShareResponse::FAIL, $response);
 		}
 		return $hgresponse;
 	}
@@ -353,9 +353,9 @@ class HgResumeAPI {
 	function finishPushBundle($transId) {
 		$bundle = new BundleHelper($transId);
 		if ($bundle->cleanUp()) {
-			return new HgResumeResponse(HgResumeResponse::SUCCESS);
+			return new WeShareResponse(WeShareResponse::SUCCESS);
 		} else {
-			return new HgResumeResponse(HgResumeResponse::FAIL);
+			return new WeShareResponse(WeShareResponse::FAIL);
 		}
 	}
 
@@ -368,22 +368,22 @@ class HgResumeAPI {
 				// check that the repo has not been updated, since a pull was started
 				if ($bundle->getProp("tip") != $hg->getTip()) {
 					$bundle->cleanUp();
-					return new HgResumeResponse(HgResumeResponse::RESET);
+					return new WeShareResponse(WeShareResponse::RESET);
 				}
 			}
 		}
 		if ($bundle->cleanUp()) {
-			return new HgResumeResponse(HgResumeResponse::SUCCESS);
+			return new WeShareResponse(WeShareResponse::SUCCESS);
 		}
-		return new HgResumeResponse(HgResumeResponse::FAIL);
+		return new WeShareResponse(WeShareResponse::FAIL);
 	}
 
 	function isAvailable() {
 		if ($this->isAvailableAsBool()) {
-			return new HgResumeResponse(HgResumeResponse::SUCCESS);
+			return new WeShareResponse(WeShareResponse::SUCCESS);
 		}
 		$message = file_get_contents($this->getMaintenanceFilePath());
-		return new HgResumeResponse(HgResumeResponse::NOTAVAILABLE, array(), $message);
+		return new WeShareResponse(WeShareResponse::NOTAVAILABLE, array(), $message);
 	}
 
 	private function isAvailableAsBool() {

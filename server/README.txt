@@ -1,9 +1,9 @@
 Source code can be pulled from the Hg repository located at:
-http://hg.palaso.org/hgresume
+http://hg.palaso.org/WeShare
 
 Installation
 -----------------------
-1) Clone the hgresume repo to the htdocs directory on the apache server where you will be installing the resumable API
+1) Clone the WeShare repo to the htdocs directory on the apache server where you will be installing the resumable API
 e.g. the repo base folder would be /var/www/[site_name]/htdocs
 
 2) Once you clone and update to the latest revision, you should have a folder structure like:
@@ -12,7 +12,7 @@ e.g. the repo base folder would be /var/www/[site_name]/htdocs
 3) The api folder contains the PHP code for the API, while the contrib folder contains additional files needed for installation
 
 4) The api/[version]/src/config.php file contains two variables that should be set to the directories that the API uses.
-CACHE_PATH by default points to /var/cache/hgresume
+CACHE_PATH by default points to /var/cache/WeShare
 REPOPATH by default points to /var/vcs/public
 
 5) create the CACHE_PATH directory and change the ownership and permissions to www-data:www-data 750
